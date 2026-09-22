@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management System - PT Cakra Sinergi Abadi</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- JsBarcode Library -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
+    <!-- Google Fonts: Outfit (Modern Premium Sans-Serif) -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            font-size: 14px; 
+            letter-spacing: -0.01em;
+        }
+        [x-cloak] { display: none !important; }
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased selection:bg-rose-600 selection:text-white flex min-h-screen" x-data="appManager()">
+
+    <!-- ================= HALAMAN LOGIN ================= -->
+    <div x-show="!isLoggedIn" class="fixed inset-0 bg-[#111318] z-50 flex items-center justify-center p-4" x-cloak>
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 space-y-6 shadow-2xl border border-slate-100">
+            <div class="text-center space-y-2">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-600 to-red-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-rose-900/30 mx-auto">
+                    📦
+                </div>
+                <h1 class="text-lg font-bold text-slate-900 tracking-wide">Login Inventory System</h1>
+                <p class="text-xs text-slate-500 font-medium">PT Cakra Sinergi Abadi</p>
+            </div>
+
+            <div class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-bold uppercase tracking-wider text-slate-500 mb-1.5">Username</label>
+                    <input type="text" x-model="loginForm.username" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="Masukkan username...">
+                </div>
+                <div>
+                    <label class="block font-bold uppercase tracking-wider text-slate-500 mb-1.5">Password</label>
+                    <input type="password" x-model="loginForm.password" @keyup.enter="prosesLogin" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium focus:outline-none focus:ring-2 focus:ring-rose-500" placeholder="Masukkan password...">
+                </div>
+                <div x-show="loginError" class="p-3 bg-rose-50 text-rose-600 rounded-xl font-semibold text-center" x-text="loginError"></div>
+            </div>
+
+            <button @click="prosesLogin" class="w-full bg-rose-600 hover:bg-rose-700 text-white py-3.5 rounded-xl font-semibold transition shadow-lg shadow-rose-900/20 text-xs">
+                Masuk ke Aplikasi
+            </button>
+
+            <div class="text-center pt-2 text-[11px] text-slate-400 space-y-1">
+                <div>Default Login: <span class="font-mono font-bold text-slate-600">admin</span> / <span class="font-mono font-bold text-slate-600">admin123</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= APLIKASI UTAMA (SETELAH LOGIN BERHASIL) ================= -->
+    <template x-if="isLoggedIn">
+        <div class="flex w-full min-h-screen">
+            <!-- ================= SIDEBAR GELAP ================= -->
+            <aside class="w-64 bg-[#111318] text-slate-300 flex flex-col fixed inset-y-0 left-0 z-40 border-r border-slate-800">
+                <!-- Logo Header Sidebar -->
+                <div class="h-20 flex items-center px-6 gap-3 border-b border-slate-800/80">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-red-500 flex items-center justify-center text-white text-xl shadow-lg shadow-rose-900/30">
+                        📦
+                    </div>
+                    <div>
+                        <h1 class="text-sm font-bold text-white tracking-wide">Inventory</h1>
+                        <p class="text-[11px] font-semibold text-rose-500 uppercase tracking-wider">PT Cakra Sinergi Abadi</p>
+                    </div>
+                </div>
+
+                <!-- Menu Navigasi Samping -->
+                <div class="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-3 mb-2">Menu Utama</div>
+                    
+                    <button @click="currentPage = 'dashboard'" :class="currentPage === 'dashboard' ? 'bg-rose-600 text-white font-semibold shadow-lg shadow-rose-900/40' : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition text-left">
+                        <span>📊</span> Dashboard
+                    </button>
+                    <button @click="currentPage = 'inventory'; activeTab = 'summary'" :class="currentPage === 'inventory' && activeTab === 'summary' ? 'bg-rose-600 text-white font-semibold shadow-lg shadow-rose-900/40' : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition text-left">
+                        <span>📦</span> Inventory Summary
+                    </button>
+                    <button @click="currentPage = 'inventory'; activeTab = 'masuk'" :class="currentPage === 'inventory' && activeTab === 'masuk' ? 'bg-rose-600 text-white font-semibold shadow-lg shadow-rose-900/40' : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition text-left">
+                        <span>📥</span> Barang Masuk
+                    </button>
+                    <button @click="currentPage = 'inventory'; activeTab = 'keluar'" :class="currentPage === 'inventory' && activeTab === 'keluar' ? 'bg-rose-600 text-white font-semibold shadow-lg shadow-rose-900/40' : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition text-left">
+                        <span>📤</span> Barang Keluar
+                    </button>
+                    <button @click="currentPage = 'inventory'; activeTab = 'tracker'" :class="currentPage === 'inventory' && activeTab === 'tracker' ? 'bg-rose-600 text-white font-semibold shadow-lg shadow-rose-900/40' : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition text-left">
+                        <span>⚡</span> Tracker Harian
+                    </button>
+                    <button @click="currentPage = 'inventory'; activeTab = 'hpp'" :class="currentPage === 'inventory' && activeTab === 'hpp' ? 'bg-rose-600 text-white font-semibold shadow-lg shadow-rose-900/40' : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition text-left">
+                        <span>🧮</span> Kalkulasi HPP
+                    </button>
+                    <button @click="currentPage = 'inventory'; activeTab = 'barcode'" :class="currentPage === 'inventory' && activeTab === 'barcode' ? 'bg-rose-600 text-white font-semibold shadow-lg shadow-rose-900/40' : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition text-left">
+                        <span>🏷️</span> Cetak Barcode
+                    </button>
+                    <button @click="currentPage = 'users'" :class="currentPage === 'users' ? 'bg-rose-600 text-white font-semibold shadow-lg shadow-rose-900/40' : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition text-left">
+                        <span>👥</span> Manajemen User
+                    </button>
+                </div>
+
+                <!-- Footer Sidebar & Tombol Logout -->
+                <div class="p-4 border-t border-slate-800/80 flex items-center justify-between">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="w-9 h-9 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-xs" x-text="currentUser.name.substring(0,2).toUpperCase()"></div>
+                        <div class="overflow-hidden">
+                            <p class="text-xs font-semibold text-white truncate" x-text="currentUser.name"></p>
+                            <p class="text-[11px] text-slate-500 uppercase truncate" x-text="currentUser.role"></p>
+                        </div>
+                    </div>
+                    <button @click="logout" title="Keluar" class="text-slate-400 hover:text-rose-500 text-base font-bold transition p-2">⏻</button>
+                </div>
+            </aside>
+
+            <!-- ================= AREA KONTEN UTAMA ================= -->
+            <div class="flex-1 ml-64 flex flex-col min-h-screen">
+                
+                <!-- Header Atas (Top Navbar) -->
+                <header class="bg-white border-b border-slate-200 sticky top-0 z-30 h-20 px-8 flex justify-between items-center shadow-xs">
+                    <div class="flex items-center gap-4 w-96">
+                        <div class="relative w-full">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 text-sm">🔍</span>
+                            <input type="text" placeholder="Cari data barang atau transaksi..." class="w-full bg-slate-50 border border-slate-200 rounded-full pl-10 pr-4 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200 text-xs font-medium">
+                            <span class="text-slate-500 px-2 font-semibold">📅 Periode:</span>
+                            <select x-model="selectedBulan" @change="saveData" class="bg-white text-slate-700 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none font-semibold">
+                                <option value="01">Januari</option>
+                                <option value="02">Februari</option>
+                                <option value="03">Maret</option>
+                                <option value="04">April</option>
+                                <option value="05">Mei</option>
+                                <option value="06">Juni</option>
+                                <option value="07">Juli</option>
+                                <option value="08">Agustus</option>
+                                <option value="09">September</option>
+                                <option value="10">Oktober</option>
+                                <option value="11">November</option>
+                                <option value="12">Desember</option>
+                            </select>
+                            <select x-model="selectedTahun" @change="saveData" class="bg-white text-slate-700 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none font-semibold">
+                                <option value="2026">2026</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                            </select>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Main Body Content -->
+                <main class="p-8 space-y-8 flex-1">
+
+                    <!-- ================= HALAMAN DASHBOARD ================= -->
+                    <div x-show="currentPage === 'dashboard'" class="space-y-8" x-cloak>
+                        <!-- Diagram & Rincian Nilai Inventory Berdasarkan Kategori -->
+                        <div class="bg-white rounded-3xl shadow-xs border border-slate-200/70 p-6 sm:p-8 space-y-6">
+                            <div>
+                                <h3 class="text-base font-extrabold text-slate-900">Nilai Inventory berdasarkan Kategori</h3>
+                                <p class="text-xs text-slate-500">Distribusi nilai inventory per kategori bahan (data aktual)</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pt-4">
+                                <!-- Sisi Kiri: Visual Donut Chart SVG -->
+                                <div class="lg:col-span-5 flex flex-col items-center justify-center p-6 bg-slate-50/70 rounded-2xl border border-slate-100">
+                                    <div class="relative w-56 h-56 flex items-center justify-center">
+                                        <svg viewBox="0 0 42 42" class="w-full h-full transform -rotate-90">
+                                            <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#e2e8f0" stroke-width="6"></circle>
+                                            <template x-for="(cat, cIdx) in kategoriSummaryList" :key="cIdx">
+                                                <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" 
+                                                    :stroke="cat.warna" 
+                                                    stroke-width="6" 
+                                                    :stroke-dasharray="cat.dashArray" 
+                                                    :stroke-dashoffset="cat.dashOffset">
+                                                </circle>
+                                            </template>
+                                        </svg>
+                                        <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                                            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Aset</span>
+                                            <span class="text-sm font-black text-slate-900 mt-0.5" x-text="formatRupiah(totalNominalStock)"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sisi Kanan: List Rincian Per Kategori -->
+                                <div class="lg:col-span-7 space-y-3">
+                                    <template x-for="(cat, cIdx) in kategoriSummaryList" :key="cIdx">
+                                        <div class="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100/70 rounded-2xl border border-slate-100 transition">
+                                            <div class="flex items-center gap-3">
+                                                <span class="w-3 h-3 rounded-full shrink-0" :style="'background-color: ' + cat.warna"></span>
+                                                <div>
+                                                    <div class="font-bold text-slate-900 text-xs sm:text-sm" x-text="cat.namaKategori + ' (' + cat.persentase + '%)'"></div>
+                                                    <div class="text-[11px] text-slate-500 font-medium" x-text="cat.jumlahProduk + ' items'"></div>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="font-black text-slate-900 text-xs sm:text-sm" x-text="formatRupiah(cat.totalNilaiAset)"></div>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- Kotak Total Keseluruhan -->
+                                    <div class="flex items-center justify-between p-4 bg-indigo-50/70 rounded-2xl border border-indigo-100">
+                                        <div>
+                                            <div class="font-extrabold text-indigo-950 text-xs sm:text-sm">Total Nilai Inventory</div>
+                                            <div class="text-[11px] text-indigo-600 font-semibold" x-text="items.length + ' items'"></div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="font-black text-indigo-900 text-sm sm:text-base" x-text="formatRupiah(totalNominalStock)"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Grid Info Bawah -->
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <div class="bg-white rounded-2xl shadow-xs border border-slate-200/70 p-6 space-y-6">
+                                <div>
+                                    <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Product Details</h3>
+                                    <p class="text-xs text-slate-500">Ringkasan status inventaris keseluruhan</p>
+                                </div>
+                                <div class="space-y-3.5 text-xs divide-y divide-slate-100">
+                                    <div class="flex justify-between pt-2">
+                                        <span class="text-rose-600 font-semibold">Low Stock Items</span>
+                                        <span class="font-bold text-slate-800" x-text="lowStockCount"></span>
+                                    </div>
+                                    <div class="flex justify-between pt-3">
+                                        <span class="text-slate-600 font-medium">Total Jenis Barang</span>
+                                        <span class="font-bold text-slate-800" x-text="items.length"></span>
+                                    </div>
+                                    <div class="flex justify-between pt-3">
+                                        <span class="text-slate-600 font-medium">Periode Aktif</span>
+                                        <span class="font-bold text-rose-600" x-text="namaBulanAktif + ' ' + selectedTahun"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-2xl shadow-xs border border-slate-200/70 p-6 space-y-6 lg:col-span-2">
+                                <div>
+                                    <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Pemakaian & Valuasi Per Kategori</h3>
+                                    <p class="text-xs text-slate-500">Akumulasi jumlah terpakai dan total nilai aset berdasarkan kategori</p>
+                                </div>
+                                <div class="overflow-x-auto rounded-xl border border-slate-100">
+                                    <table class="w-full text-left border-collapse text-xs">
+                                        <thead>
+                                            <tr class="bg-slate-50 text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                                                <th class="p-3.5 font-bold">Kategori</th>
+                                                <th class="p-3.5 text-center font-bold">Jumlah Produk</th>
+                                                <th class="p-3.5 text-center font-bold">Qty Terpakai</th>
+                                                <th class="p-3.5 text-right font-bold">Total Nilai Aset</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+                                            <template x-for="cat in kategoriSummaryList">
+                                                <tr class="hover:bg-slate-50/50 transition">
+                                                    <td class="p-3.5 font-bold text-slate-900" x-text="cat.namaKategori"></td>
+                                                    <td class="p-3.5 text-center" x-text="cat.jumlahProduk + ' Unit'"></td>
+                                                    <td class="p-3.5 text-center font-semibold text-amber-600" x-text="cat.totalQtyKeluar"></td>
+                                                    <td class="p-3.5 text-right font-semibold text-emerald-600" x-text="formatRupiah(cat.totalNilaiAset)"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ================= HALAMAN INVENTORY & KELOLA ================= -->
+                    <div x-show="currentPage === 'inventory'" class="space-y-6" x-cloak>
+                        <div class="bg-white rounded-2xl shadow-xs border border-slate-200/70 p-6 sm:p-8">
+
+                            <!-- TAB 1: SUMMARY -->
+                            <div x-show="activeTab === 'summary'" class="space-y-6" x-cloak>
+                                <div class="flex justify-between items-center">
+                                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Ringkasan Stok Bahan Baku</h2>
+                                    <button @click="bukaFormTambahMaster()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs px-4 py-2.5 rounded-xl font-semibold shadow-sm transition">+ Tambah Barang Baru</button>
+                                </div>
+                                <div class="overflow-x-auto rounded-xl border border-slate-100">
+                                    <table class="w-full text-left border-collapse text-xs">
+                                        <thead>
+                                            <tr class="bg-slate-50 text-slate-500 uppercase tracking-wider border-b border-slate-100 font-bold">
+                                                <th class="p-3.5">No</th>
+                                                <th class="p-3.5">Kode & Barcode</th>
+                                                <th class="p-3.5">Kategori</th>
+                                                <th class="p-3.5">Nama Barang</th>
+                                                <th class="p-3.5 text-center">Qty Awal</th>
+                                                <th class="p-3.5 text-center">Masuk</th>
+                                                <th class="p-3.5 text-center">Keluar</th>
+                                                <th class="p-3.5 text-center">Stok Akhir</th>
+                                                <th class="p-3.5">Satuan</th>
+                                                <th class="p-3.5 text-right">Harga Rata</th>
+                                                <th class="p-3.5 text-right">Nilai Total</th>
+                                                <th class="p-3.5 text-center">Status</th>
+                                                <th class="p-3.5 text-center">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+                                            <template x-for="(item, index) in items" :key="index">
+                                                <tr class="hover:bg-slate-50/50 transition">
+                                                    <td class="p-3.5 text-slate-400" x-text="index + 1"></td>
+                                                    <td class="p-3.5">
+                                                        <div class="font-mono font-semibold text-slate-800" x-text="item.kode"></div>
+                                                        <canvas class="mt-1 max-w-[100px]" :id="'bcode-' + index" x-init="$nextTick(() => generateBarcode(item.kode, 'bcode-' + index))"></canvas>
+                                                    </td>
+                                                    <td class="p-3.5">
+                                                        <span class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700" x-text="item.kategori || 'Umum'"></span>
+                                                    </td>
+                                                    <td class="p-3.5 font-semibold text-slate-900" x-text="item.nama"></td>
+                                                    <td class="p-3.5 text-center" x-text="getQtyAwalDinamis(item)"></td>
+                                                    <td class="p-3.5 text-center font-semibold text-blue-600" x-text="getQtyMasukBulanIni(item.nama)"></td>
+                                                    <td class="p-3.5 text-center font-semibold text-amber-600" x-text="getQtyKeluarBulanIni(item.nama)"></td>
+                                                    <td class="p-3.5 text-center font-bold text-slate-900" x-text="getStokAkhir(item)"></td>
+                                                    <td class="p-3.5 text-slate-500" x-text="item.satuan"></td>
+                                                    <td class="p-3.5 text-right" x-text="formatRupiah(getHargaRataGabungan(item))"></td>
+                                                    <td class="p-3.5 text-right font-semibold text-slate-900" x-text="formatRupiah(getNilaiTotal(item))"></td>
+                                                    <td class="p-3.5 text-center">
+                                                        <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                                                            :class="{
+                                                                'bg-emerald-50 text-emerald-700': getStatus(item) === 'Aman',
+                                                                'bg-amber-50 text-amber-700': getStatus(item) === 'Low Stock',
+                                                                'bg-rose-50 text-rose-700': getStatus(item) === 'Out of Stock'
+                                                            }" x-text="getStatus(item)"></span>
+                                                    </td>
+                                                    <td class="p-3.5 text-center space-x-2">
+                                                        <button @click="editMasterBarang(index)" class="text-indigo-600 font-semibold hover:underline">Edit</button>
+                                                        <button @click="hapusMasterBarang(index)" class="text-rose-500 font-semibold hover:underline">Hapus</button>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- TAB 2: BARANG MASUK -->
+                            <div x-show="activeTab === 'masuk'" class="space-y-6" x-cloak>
+                                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Catat Stok Barang Masuk</h2>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                                    <div>
+                                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Tanggal</label>
+                                        <input type="date" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium" x-model="formMasuk.tanggal">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Scan / Ketik Kode Barang</label>
+                                        <input type="text" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-mono font-medium" x-model="formMasuk.kode" @input="cekBarcodeMasuk" placeholder="Scan atau Ketik Kode...">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Kategori</label>
+                                        <input type="text" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-800" x-model="formMasuk.kategori" placeholder="Manual atau Otomatis...">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Nama Barang</label>
+                                        <input type="text" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-800" x-model="formMasuk.nama" placeholder="Manual atau Otomatis...">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Qty (Jumlah)</label>
+                                        <input type="number" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium" x-model.number="formMasuk.qty" @input="hitungTotalMasuk" placeholder="0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Harga Satuan (Rp)</label>
+                                        <input type="number" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium" x-model.number="formMasuk.hargaSatuan" @input="hitungTotalMasuk" placeholder="0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Total Harga Pembelian (Rp)</label>
+                                        <input type="number" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium" x-model.number="formMasuk.totalHarga" @input="hitungSatuanMasuk" placeholder="0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Supplier</label>
+                                        <input type="text" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium" x-model="formMasuk.supplier" placeholder="Nama Supplier">
+                                    </div>
+                                    <div class="flex items-end sm:col-span-2">
+                                        <button @click="simpanBarangMasuk" class="w-full bg-rose-600 hover:bg-rose-700 text-white text-xs py-3 rounded-xl font-semibold transition" x-text="editIndexMasuk !== null ? 'Update Data Masuk' : 'Simpan Barang Masuk'"></button>
+                                    </div>
+                                </div>
+
+                                <div class="overflow-x-auto rounded-xl border border-slate-100">
+                                    <table class="w-full text-left border-collapse text-xs">
+                                        <thead>
+                                            <tr class="bg-slate-50 text-slate-500 uppercase tracking-wider border-b border-slate-100 font-bold">
+                                                <th class="p-3.5">Tanggal</th>
+                                                <th class="p-3.5">Kode</th>
+                                                <th class="p-3.5">Kategori</th>
+                                                <th class="p-3.5">Nama Barang</th>
+                                                <th class="p-3.5 text-center">Qty</th>
+                                                <th class="p-3.5">Satuan</th>
+                                                <th class="p-3.5 text-right">Harga Satuan</th>
+                                                <th class="p-3.5 text-right">Total Harga</th>
+                                                <th class="p-3.5">Supplier</th>
+                                                <th class="p-3.5 text-center">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+                                            <template x-for="(trx, index) in filteredDataMasuk">
+                                                <tr class="hover:bg-slate-50/50 transition">
+                                                    <td class="p-3.5" x-text="trx.tanggal"></td>
+                                                    <td class="p-3.5 font-mono font-semibold" x-text="trx.kode"></td>
+                                                    <td class="p-3.5"><span class="px-2 py-0.5 rounded bg-slate-100 font-semibold text-[11px]" x-text="trx.kategori"></span></td>
+                                                    <td class="p-3.5 font-semibold" x-text="trx.nama"></td>
+                                                    <td class="p-3.5 text-center font-semibold text-blue-600" x-text="trx.qty"></td>
+                                                    <td class="p-3.5" x-text="trx.satuan"></td>
+                                                    <td class="p-3.5 text-right font-medium" x-text="formatRupiah(trx.hargaSatuan || (trx.qty > 0 ? trx.totalHarga / trx.qty : 0))"></td>
+                                                    <td class="p-3.5 text-right font-semibold" x-text="formatRupiah(trx.totalHarga)"></td>
+                                                    <td class="p-3.5" x-text="trx.supplier"></td>
+                                                    <td class="p-3.5 text-center space-x-2">
+                                                        <button @click="editBarangMasuk(originalIndexMasuk(trx))" class="text-indigo-600 font-semibold hover:underline">Edit</button>
+                                                        <button @click="hapusBarangMasuk(originalIndexMasuk(trx))" class="text-rose-500 font-semibold hover:underline">Hapus</button>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- TAB 3: BARANG KELUAR -->
+                            <div x-show="activeTab === 'keluar'" class="space-y-6" x-cloak>
+                                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Catat Pemakaian / Barang Keluar</h2>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                                    <div>
+                                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Tanggal Pakai</label>
+                                        <input type="date" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium" x-model="formKeluar.tanggal">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Scan / Ketik Kode Barang</label>
+                                        <input type="text" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-mono font-medium" x-model="formKeluar.kode" @input="cekBarcodeKeluar" placeholder="Scan atau Ketik Kode...">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Kategori</label>
+                                        <input type="text" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-800" x-model="formKeluar.kategori" placeholder="Manual atau Otomatis...">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Nama Barang</label>
+                                        <input type="text" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-800" x-model="formKeluar.nama" placeholder="Manual atau Otomatis...">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Qty Keluar</label>
+                                        <input type="number" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium" x-model.number="formKeluar.qty" placeholder="0">
+                                    </div>
+                                    <div class="flex items-end">
+                                        <button @click="simpanBarangKeluar" class="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs py-3 rounded-xl font-semibold transition" x-text="editIndexKeluar !== null ? 'Update Keluar' : 'Simpan Barang Keluar'"></button>
+                                    </div>
+                                </div>
+
+                                <div class="overflow-x-auto rounded-xl border border-slate-100">
+                                    <table class="w-full text-left border-collapse text-xs">
+                                        <thead>
+                                            <tr class="bg-slate-50 text-slate-500 uppercase tracking-wider border-b border-slate-100 font-bold">
+                                                <th class="p-3.5">Tanggal</th>
+                                                <th class="p-3.5">No Keluar</th>
+                                                <th class="p-3.5">Kode</th>
+                                                <th class="p-3.5">Kategori</th>
+                                                <th class="p-3.5">Nama Barang</th>
+                                                <th class="p-3.5 text-center">Qty</th>
+                                                <th class="p-3.5">Satuan</th>
+                                                <th class="p-3.5 text-right">Total HPP</th>
+                                                <th class="p-3.5 text-center">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+                                            <template x-for="(trx, index) in filteredDataKeluar">
+                                                <tr class="hover:bg-slate-50/50 transition">
+                                                    <td class="p-3.5" x-text="trx.tanggal"></td>
+                                                    <td class="p-3.5 font-mono font-semibold" x-text="trx.noKeluar"></td>
+                                                    <td class="p-3.5 font-mono" x-text="trx.kode"></td>
+                                                    <td class="p-3.5"><span class="px-2 py-0.5 rounded bg-slate-100 font-semibold text-[11px]" x-text="trx.kategori"></span></td>
+                                                    <td class="p-3.5 font-semibold" x-text="trx.nama"></td>
+                                                    <td class="p-3.5 text-center font-semibold text-amber-600" x-text="trx.qty"></td>
+                                                    <td class="p-3.5" x-text="trx.satuan"></td>
+                                                    <td class="p-3.5 text-right font-semibold" x-text="formatRupiah(trx.totalHpp)"></td>
+                                                    <td class="p-3.5 text-center space-x-2">
+                                                        <button @click="editBarangKeluar(originalIndexKeluar(trx))" class="text-indigo-600 font-semibold hover:underline">Edit</button>
+                                                        <button @click="hapusBarangKeluar(originalIndexKeluar(trx))" class="text-rose-500 font-semibold hover:underline">Hapus</button>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- TAB 4: TRACKER HARIAN -->
+                            <div x-show="activeTab === 'tracker'" class="space-y-6" x-cloak>
+                                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">⚡ Tracker Pemakaian Harian</h2>
+                                <div class="overflow-x-auto rounded-xl border border-slate-100">
+                                    <table class="w-full text-left border-collapse text-xs">
+                                        <thead>
+                                            <tr class="bg-slate-50 text-slate-500 uppercase tracking-wider border-b border-slate-100 font-bold">
+                                                <th class="p-3.5">Tanggal Pakai</th>
+                                                <th class="p-3.5">Kode Barang</th>
+                                                <th class="p-3.5">Kategori</th>
+                                                <th class="p-3.5">Nama Barang</th>
+                                                <th class="p-3.5 text-center">Total Qty Dipakai</th>
+                                                <th class="p-3.5">Satuan</th>
+                                                <th class="p-3.5 text-right">Total Nilai HPP</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+                                            <template x-for="row in groupedTrackerHarian">
+                                                <tr class="hover:bg-slate-50/50 transition">
+                                                    <td class="p-3.5 font-semibold" x-text="row.tanggal"></td>
+                                                    <td class="p-3.5 font-mono" x-text="row.kode"></td>
+                                                    <td class="p-3.5"><span class="px-2 py-0.5 rounded bg-slate-100 font-semibold text-[11px]" x-text="row.kategori"></span></td>
+                                                    <td class="p-3.5 font-semibold" x-text="row.nama"></td>
+                                                    <td class="p-3.5 text-center font-semibold text-amber-600" x-text="row.totalQty"></td>
+                                                    <td class="p-3.5" x-text="row.satuan"></td>
+                                                    <td class="p-3.5 text-right font-semibold" x-text="formatRupiah(row.totalHpp)"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- TAB 5: HITUNG HPP -->
+                            <div x-show="activeTab === 'hpp'" class="space-y-6" x-cloak>
+                                <div class="flex justify-between items-center flex-wrap gap-4">
+                                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">🧮 Kalkulasi HPP Harian & Rata-rata</h2>
+                                    <div class="bg-rose-50 border border-rose-200 px-4 py-2 rounded-xl flex items-center gap-3">
+                                        <span class="text-[11px] font-bold uppercase text-rose-700">Rata-rata HPP / Pack:</span>
+                                        <span class="text-sm font-bold text-rose-950" x-text="formatRupiah(rataRataHppGlobal)"></span>
+                                    </div>
+                                </div>
+                                <div class="overflow-x-auto rounded-xl border border-slate-100">
+                                    <table class="w-full text-left border-collapse text-xs">
+                                        <thead>
+                                            <tr class="bg-slate-50 text-slate-500 uppercase tracking-wider border-b border-slate-100 font-bold">
+                                                <th class="p-3.5">Tanggal Pakai</th>
+                                                <th class="p-3.5 text-right">Total Nilai Pemakaian HPP</th>
+                                                <th class="p-3.5 text-center">Aktual Pack (Input Manual)</th>
+                                                <th class="p-3.5 text-right">HPP per Pack</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+                                            <template x-for="row in hppHarianList">
+                                                <tr class="hover:bg-slate-50/50 transition">
+                                                    <td class="p-3.5 font-semibold" x-text="row.tanggal"></td>
+                                                    <td class="p-3.5 text-right font-medium" x-text="formatRupiah(row.totalHpp)"></td>
+                                                    <td class="p-3.5 text-center">
+                                                        <input type="number" class="w-28 mx-auto bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-center text-xs font-semibold" x-model.number="hppAktualPack[row.tanggal]" @input="saveData" placeholder="0">
+                                                    </td>
+                                                    <td class="p-3.5 text-right font-bold text-emerald-600" x-text="formatRupiah(hitungHppPerPack(row.totalHpp, row.tanggal))"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- TAB 6: CETAK BARCODE -->
+                            <div x-show="activeTab === 'barcode'" class="space-y-6" x-cloak>
+                                <div class="flex justify-between items-center">
+                                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">🏷️ Label Barcode Produk</h2>
+                                    <button onclick="window.print()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs px-4 py-2.5 rounded-xl font-semibold transition">🖨️ Cetak Lembar Barcode</button>
+                                </div>
+                                <div id="print-area" class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                                    <template x-for="(item, index) in items">
+                                        <div class="bg-white border-2 border-dashed border-slate-300 p-5 rounded-2xl flex flex-col items-center justify-center text-center space-y-2">
+                                            <span class="text-[11px] font-semibold text-slate-400 uppercase" x-text="item.satuan"></span>
+                                            <h4 class="font-bold text-slate-900 text-sm" x-text="item.nama"></h4>
+                                            <div class="py-2 bg-slate-50 w-full rounded-xl flex justify-center border border-slate-100">
+                                                <canvas :id="'print-bcode-' + index" x-init="$nextTick(() => generateBarcode(item.kode, 'print-bcode-' + index))"></canvas>
+                                            </div>
+                                            <span class="font-mono text-xs font-bold text-slate-700" x-text="item.kode"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- ================= HALAMAN MANAJEMEN USER ================= -->
+                    <div x-show="currentPage === 'users'" class="space-y-6" x-cloak>
+                        <div class="bg-white rounded-2xl shadow-xs border border-slate-200/70 p-6 sm:p-8 space-y-6">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Manajemen Pengguna Sistem</h2>
+                                    <p class="text-xs text-slate-500">Kelola akun dan hak akses pengguna aplikasi gudang</p>
+                                </div>
+                                <button @click="bukaFormUser" class="bg-rose-600 hover:bg-rose-700 text-white text-xs px-4 py-2.5 rounded-xl font-semibold shadow-sm transition">+ Tambah User Baru</button>
+                            </div>
+
+                            <div class="overflow-x-auto rounded-xl border border-slate-100">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr class="bg-slate-50 text-slate-500 uppercase tracking-wider border-b border-slate-100 font-bold">
+                                            <th class="p-3.5">No</th>
+                                            <th class="p-3.5">Nama Lengkap</th>
+                                            <th class="p-3.5">Username</th>
+                                            <th class="p-3.5">Password</th>
+                                            <th class="p-3.5">Role / Jabatan</th>
+                                            <th class="p-3.5 text-center">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+                                        <template x-for="(usr, uIdx) in usersList" :key="uIdx">
+                                            <tr class="hover:bg-slate-50/50 transition">
+                                                <td class="p-3.5 text-slate-400" x-text="uIdx + 1"></td>
+                                                <td class="p-3.5 font-semibold text-slate-900" x-text="usr.name"></td>
+                                                <td class="p-3.5 font-mono font-semibold" x-text="usr.username"></td>
+                                                <td class="p-3.5 font-mono font-semibold text-slate-600" x-text="usr.password"></td>
+                                                <td class="p-3.5">
+                                                    <span class="px-2 py-0.5 rounded bg-slate-100 font-semibold text-[11px] uppercase" x-text="usr.role"></span>
+                                                </td>
+                                                <td class="p-3.5 text-center">
+                                                    <button x-show="usr.username !== 'admin'" @click="hapusUser(uIdx)" class="text-rose-500 font-semibold hover:underline">Hapus</button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </main>
+            </div>
+        </div>
+    </template>
+
+    <!-- MODAL TAMBAH / EDIT BARANG MASTER -->
+    <div x-show="openAddModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50" x-cloak>
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 sm:p-8 space-y-6 shadow-xl border border-slate-100">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider" x-text="editIndexMaster !== null ? 'Edit Data Barang' : 'Tambah Barang Baru'"></h3>
+                <button @click="openAddModal = false" class="text-slate-400 font-bold">✕</button>
+            </div>
+            <div class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-semibold uppercase tracking-wider text-slate-500 mb-1">Kode Barang / Barcode ID</label>
+                    <input type="text" x-model="newMaster.kode" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono font-semibold" placeholder="MCH-01">
+                </div>
+                <div>
+                    <label class="block font-semibold uppercase tracking-wider text-slate-500 mb-1">Kategori</label>
+                    <input type="text" x-model="newMaster.kategori" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium" placeholder="Contoh: Bahan Baku / Kemasan">
+                </div>
+                <div>
+                    <label class="block font-semibold uppercase tracking-wider text-slate-500 mb-1">Nama Barang / Bahan</label>
+                    <input type="text" x-model="newMaster.nama" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium" placeholder="Powder Matcha">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold uppercase tracking-wider text-slate-500 mb-1">Qty Awal</label>
+                        <input type="number" x-model.number="newMaster.qtyAwal" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block font-semibold uppercase tracking-wider text-slate-500 mb-1">Satuan</label>
+                        <input type="text" x-model="newMaster.satuan" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium" placeholder="Kg">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold uppercase tracking-wider text-slate-500 mb-1">Harga Awal (Rp)</label>
+                        <input type="number" x-model.number="newMaster.hargaRata" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block font-semibold uppercase tracking-wider text-slate-500 mb-1">Min Stock</label>
+                        <input type="number" x-model.number="newMaster.minStock" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium" placeholder="0">
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button @click="openAddModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-semibold">Batal</button>
+                <button @click="simpanMasterBarang" class="px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-semibold">Simpan Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL TAMBAH USER -->
+    <div x-show="openUserModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50" x-cloak>
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 sm:p-8 space-y-6 shadow-xl border border-slate-100">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Tambah Pengguna Baru</h3>
+                <button @click="openUserModal = false" class="text-slate-400 font-bold">✕</button>
+            </div>
+            <div class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-semibold uppercase tracking-wider text-slate-500 mb-1">Nama Lengkap</label>
+                    <input type="text" x-model="newUser.name" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium" placeholder="Nama Karyawan">
+                </div>
+                <div>
+                    <label class="block font-semibold uppercase tracking-wider text-slate-500 mb-1">Username Login</label>
+                    <input type="text" x-model="newUser.username" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium" placeholder="username">
+                </div>
+                <div>
+                    <label class="block font-semibold uppercase tracking-wider text-slate-500 mb-1">Password</label>
+                    <input type="text" x-model="newUser.password" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium" placeholder="password123">
+                </div>
+                <div>
+                    <label class="block font-semibold uppercase tracking-wider text-slate-500 mb-1">Role / Jabatan</label>
+                    <select x-model="newUser.role" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-medium">
+                        <option value="staff">Staff Gudang</option>
+                        <option value="admin">Administrator</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button @click="openUserModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-semibold">Batal</button>
+                <button @click="simpanUserBaru" class="px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-semibold">Simpan Akun</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT APLIKASI -->
+    <script>
+        function appManager() {
+            return {
+                // Sesi Login & Manajemen User
+                isLoggedIn: localStorage.getItem('inv_logged') === 'true',
+                currentUser: JSON.parse(localStorage.getItem('inv_current_user')) || { name: 'Administrator', username: 'admin', role: 'admin' },
+                loginForm: { username: '', password: '' },
+                loginError: '',
+                usersList: JSON.parse(localStorage.getItem('inv_users')) || [
+                    { name: 'Administrator', username: 'admin', password: 'admin123', role: 'admin' },
+                    { name: 'Staff Gudang', username: 'staff', password: 'staff123', role: 'staff' }
+                ],
+                openUserModal: false,
+                newUser: { name: '', username: '', password: '', role: 'staff' },
+
+                prosesLogin() {
+                    this.loginError = '';
+                    let found = this.usersList.find(u => u.username === this.loginForm.username && u.password === this.loginForm.password);
+                    if (found) {
+                        this.currentUser = { name: found.name, username: found.username, role: found.role };
+                        this.isLoggedIn = true;
+                        localStorage.setItem('inv_logged', 'true');
+                        localStorage.setItem('inv_current_user', JSON.stringify(this.currentUser));
+                    } else {
+                        this.loginError = 'Username atau password salah!';
+                    }
+                },
+
+                logout() {
+                    this.isLoggedIn = false;
+                    localStorage.removeItem('inv_logged');
+                    localStorage.removeItem('inv_current_user');
+                    this.loginForm = { username: '', password: '' };
+                },
+
+                bukaFormUser() {
+                    this.newUser = { name: '', username: '', password: '', role: 'staff' };
+                    this.openUserModal = true;
+                },
+
+                simpanUserBaru() {
+                    if (!this.newUser.name || !this.newUser.username || !this.newUser.password) {
+                        alert('Semua kolom wajib diisi!'); return;
+                    }
+                    this.usersList.push({ ...this.newUser });
+                    localStorage.setItem('inv_users', JSON.stringify(this.usersList));
+                    this.openUserModal = false;
+                },
+
+                hapusUser(index) {
+                    if (confirm('Yakin ingin menghapus akun ini?')) {
+                        this.usersList.splice(index, 1);
+                        localStorage.setItem('inv_users', JSON.stringify(this.usersList));
+                    }
+                },
+
+                currentPage: 'dashboard',
+                activeTab: 'summary',
+                openAddModal: false,
+                
+                selectedBulan: localStorage.getItem('inv_bulan') || '09',
+                selectedTahun: localStorage.getItem('inv_tahun') || '2026',
+                hppAktualPack: JSON.parse(localStorage.getItem('inv_hpp_pack')) || {},
+
+                get namaBulanAktif() {
+                    const listBulan = {
+                        '01': 'Januari', '02': 'Februari', '03': 'Maret', '04': 'April',
+                        '05': 'Mei', '06': 'Juni', '07': 'Juli', '08': 'Agustus',
+                        '09': 'September', '10': 'Oktober', '11': 'November', '12': 'Desember'
+                    };
+                    return listBulan[this.selectedBulan] || 'Januari';
+                },
+
+                items: JSON.parse(localStorage.getItem('inv_items')) || [
+                    { kode: 'MCH-01', kategori: 'Bahan Baku', nama: 'Powder Matcha', qtyAwal: 10, satuan: 'Kg', hargaRata: 75000, minStock: 3 },
+                    { kode: 'SGR-02', kategori: 'Bahan Baku', nama: 'Gula Pasir Premium', qtyAwal: 25, satuan: 'Kg', hargaRata: 14000, minStock: 5 },
+                    { kode: 'KMS-01', kategori: 'Kemasan', nama: 'Cup Plastik 16oz', qtyAwal: 500, satuan: 'Pcs', hargaRata: 500, minStock: 50 }
+                ],
+                dataMasuk: JSON.parse(localStorage.getItem('inv_masuk')) || [],
+                dataKeluar: JSON.parse(localStorage.getItem('inv_keluar')) || [],
+
+                newMaster: { kode: '', kategori: '', nama: '', qtyAwal: 0, satuan: '', hargaRata: 0, minStock: 0 },
+                editIndexMaster: null,
+                formMasuk: { tanggal: '', kode: '', kategori: '', nama: '', qty: 0, hargaSatuan: 0, totalHarga: 0, supplier: '' },
+                editIndexMasuk: null,
+                formKeluar: { tanggal: '', kode: '', kategori: '', nama: '', qty: 0 },
+                editIndexKeluar: null,
+
+                saveData() {
+                    localStorage.setItem('inv_bulan', this.selectedBulan);
+                    localStorage.setItem('inv_tahun', this.selectedTahun);
+                    localStorage.setItem('inv_items', JSON.stringify(this.items));
+                    localStorage.setItem('inv_masuk', JSON.stringify(this.dataMasuk));
+                    localStorage.setItem('inv_keluar', JSON.stringify(this.dataKeluar));
+                    localStorage.setItem('inv_hpp_pack', JSON.stringify(this.hppAktualPack));
+                },
+
+                cekBarcodeMasuk() {
+                    let cleanCode = this.formMasuk.kode ? this.formMasuk.kode.trim() : '';
+                    let matched = this.items.find(i => i.kode.toLowerCase() === cleanCode.toLowerCase());
+                    if (matched) {
+                        this.formMasuk.nama = matched.nama;
+                        this.formMasuk.kategori = matched.kategori || '';
+                    }
+                },
+
+                cekBarcodeKeluar() {
+                    let cleanCode = this.formKeluar.kode ? this.formKeluar.kode.trim() : '';
+                    let matched = this.items.find(i => i.kode.toLowerCase() === cleanCode.toLowerCase());
+                    if (matched) {
+                        this.formKeluar.nama = matched.nama;
+                        this.formKeluar.kategori = matched.kategori || '';
+                    }
+                },
+
+                hitungTotalMasuk() {
+                    let q = Number(this.formMasuk.qty) || 0;
+                    let hs = Number(this.formMasuk.hargaSatuan) || 0;
+                    this.formMasuk.totalHarga = q * hs;
+                },
+
+                hitungSatuanMasuk() {
+                    let q = Number(this.formMasuk.qty) || 0;
+                    let th = Number(this.formMasuk.totalHarga) || 0;
+                    if (q > 0) {
+                        this.formMasuk.hargaSatuan = th / q;
+                    }
+                },
+
+                generateBarcode(codeText, elementId) {
+                    try {
+                        const el = document.getElementById(elementId);
+                        if(el && codeText) {
+                            JsBarcode(el, codeText, { format: "CODE128", width: 1.5, height: 32, displayValue: false, margin: 2 });
+                        }
+                    } catch(e) {}
+                },
+
+                formatRupiah(number) {
+                    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(number || 0);
+                },
+
+                isCurrentPeriod(tanggalStr) {
+                    if (!tanggalStr) return false;
+                    const parts = tanggalStr.split('-');
+                    if (parts.length < 2) return false;
+                    return parts[0] === this.selectedTahun && parts[1] === this.selectedBulan;
+                },
+
+                get filteredDataMasuk() {
+                    return this.dataMasuk.map(i => {
+                        let matched = this.items.find(item => item.nama === i.nama);
+                        return { ...i, kategori: matched ? matched.kategori : (i.kategori || '') };
+                    }).filter(i => this.isCurrentPeriod(i.tanggal));
+                },
+                originalIndexMasuk(trx) { return this.dataMasuk.findIndex(i => i === trx); },
+
+                get filteredDataKeluar() {
+                    return this.dataKeluar.map(i => {
+                        let matched = this.items.find(item => item.nama === i.nama);
+                        return { ...i, kategori: matched ? matched.kategori : (i.kategori || '') };
+                    }).filter(i => this.isCurrentPeriod(i.tanggal));
+                },
+                originalIndexKeluar(trx) { return this.dataKeluar.findIndex(i => i === trx); },
+
+                getQtyMasukBulanIni(namaBarang) {
+                    return this.dataMasuk.filter(i => this.isCurrentPeriod(i.tanggal) && i.nama === namaBarang).reduce((sum, i) => sum + Number(i.qty), 0);
+                },
+                getQtyKeluarBulanIni(namaBarang) {
+                    return this.dataKeluar.filter(i => this.isCurrentPeriod(i.tanggal) && i.nama === namaBarang).reduce((sum, i) => sum + Number(i.qty), 0);
+                },
+
+                getFinalQtyAwal(item) {
+                    let curBulan = Number(this.selectedBulan);
+                    let curTahun = Number(this.selectedTahun);
+                    if (curBulan === 1) {
+                        return Number(item.qtyAwal) || 0;
+                    }
+                    let prevBulan = String(curBulan - 1).padStart(2, '0');
+                    return this.getStokAkhirBulanCustom(item, prevBulan, String(curTahun));
+                },
+
+                getStokAkhirBulanCustom(item, bulan, tahun) {
+                    let isTarget = (t) => {
+                        if (!t) return false;
+                        let p = t.split('-');
+                        return p[0] === tahun && p[1] === bulan;
+                    };
+                    let base = Number(item.qtyAwal) || 0;
+                    let netAllBefore = 0;
+                    let targetDate = new Date(`${tahun}-${bulan}-01`);
+                    this.dataMasuk.filter(i => i.nama === item.nama && new Date(i.tanggal) < targetDate).forEach(i => netAllBefore += Number(i.qty));
+                    this.dataKeluar.filter(i => i.nama === item.nama && new Date(i.tanggal) < targetDate).forEach(i => netAllBefore -= Number(i.qty));
+                    let m = this.dataMasuk.filter(i => isTarget(i.tanggal) && i.nama === item.nama).reduce((s, x) => s + Number(x.qty), 0);
+                    let k = this.dataKeluar.filter(i => isTarget(i.tanggal) && i.nama === item.nama).reduce((s, x) => s + Number(x.qty), 0);
+                    return base + netAllBefore + m - k;
+                },
+
+                getQtyAwalDinamis(item) {
+                    return this.getFinalQtyAwal(item);
+                },
+
+                // Logika Harga Rata-Rata: (Nilai Total Barang + Total Harga Masuk) / Jumlah Qty yang Ada
+                getHargaRataGabungan(item) {
+                    let qtyAwalBulan = this.getFinalQtyAwal(item);
+                    let hargaAwal = Number(item.hargaRata) || 0;
+                    let nilaiAwalBarang = qtyAwalBulan * hargaAwal;
+
+                    let masukBulanIni = this.dataMasuk.filter(i => {
+                        if (!i.tanggal) return false;
+                        let parts = i.tanggal.split('-');
+                        return parts[0] === this.selectedTahun && parts[1] === this.selectedBulan && i.nama === item.nama;
+                    });
+
+                    let qtyMasuk = masukBulanIni.reduce((sum, i) => sum + Number(i.qty), 0);
+                    let totalHargaMasuk = masukBulanIni.reduce((sum, i) => sum + Number(i.totalHarga), 0);
+
+                    let totalQtyTersedia = qtyAwalBulan + qtyMasuk;
+                    if (totalQtyTersedia <= 0) return hargaAwal;
+
+                    return (nilaiAwalBarang + totalHargaMasuk) / totalQtyTersedia;
+                },
+
+                getStokAkhir(item) {
+                    let qtyAwalBulan = this.getFinalQtyAwal(item);
+                    let totalMasuk = this.getQtyMasukBulanIni(item.nama);
+                    let totalKeluar = this.getQtyKeluarBulanIni(item.nama);
+                    return qtyAwalBulan + totalMasuk - totalKeluar;
+                },
+
+                getNilaiTotal(item) {
+                    return this.getStokAkhir(item) * this.getHargaRataGabungan(item);
+                },
+
+                getStatus(item) {
+                    let stokAkhir = this.getStokAkhir(item);
+                    if (stokAkhir <= 0) return 'Out of Stock';
+                    if (stokAkhir <= Number(item.minStock)) return 'Low Stock';
+                    return 'Aman';
+                },
+
+                get lowStockCount() { return this.items.filter(i => this.getStatus(i) === 'Low Stock').length; },
+                get outOfStockCount() { return this.items.filter(i => this.getStatus(i) === 'Out of Stock').length; },
+                get totalNominalStock() {
+                    return this.items.reduce((sum, item) => sum + this.getNilaiTotal(item), 0);
+                },
+
+                get kategoriSummaryList() {
+                    let catMap = {};
+                    this.items.forEach(item => {
+                        let catName = item.kategori || 'Umum';
+                        if (!catMap[catName]) {
+                            catMap[catName] = { namaKategori: catName, jumlahProduk: 0, totalNilaiAset: 0, totalQtyKeluar: 0 };
+                        }
+                        catMap[catName].jumlahProduk += 1;
+                        let assetVal = this.getNilaiTotal(item);
+                        catMap[catName].totalNilaiAset += assetVal;
+                    });
+
+                    this.filteredDataKeluar.forEach(trx => {
+                        let matched = this.items.find(i => i.nama === trx.nama);
+                        let catName = matched ? (matched.kategori || 'Umum') : (trx.kategori || 'Umum');
+                        if (catMap[catName]) {
+                            catMap[catName].totalQtyKeluar += Number(trx.qty);
+                        }
+                    });
+
+                    let categories = Object.values(catMap);
+                    let grandTotal = this.totalNominalStock;
+                    let colorPalette = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6'];
+
+                    let cumulativePercent = 0;
+                    return categories.map((cat, idx) => {
+                        let percentage = grandTotal > 0 ? Math.round((cat.totalNilaiAset / grandTotal) * 100) : 0;
+                        let strokeLength = percentage;
+                        let dashArray = `${strokeLength} ${100 - strokeLength}`;
+                        let dashOffset = -cumulativePercent;
+                        cumulativePercent += strokeLength;
+
+                        return {
+                            ...cat,
+                            persentase: percentage,
+                            warna: colorPalette[idx % colorPalette.length],
+                            dashArray: `${strokeLength} 100`,
+                            dashOffset: dashOffset
+                        };
+                    });
+                },
+
+                get groupedTrackerHarian() {
+                    let map = {};
+                    this.filteredDataKeluar.forEach(trx => {
+                        let key = trx.tanggal + '_' + trx.nama;
+                        let matchedItem = this.items.find(i => i.nama === trx.nama);
+                        let kode = matchedItem ? matchedItem.kode : (trx.kode || '-');
+                        let kategori = matchedItem ? matchedItem.kategori : (trx.kategori || '-');
+                        let satuan = matchedItem ? matchedItem.satuan : '-';
+                        
+                        if (!map[key]) {
+                            map[key] = { tanggal: trx.tanggal, kode: kode, kategori: kategori, nama: trx.nama, totalQty: 0, satuan: satuan, totalHpp: 0 };
+                        }
+                        map[key].totalQty += Number(trx.qty);
+                        map[key].totalHpp += Number(trx.totalHpp);
+                    });
+                    return Object.values(map).sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
+                },
+
+                get hppHarianList() {
+                    let map = {};
+                    this.filteredDataKeluar.forEach(trx => {
+                        if (!map[trx.tanggal]) {
+                            map[trx.tanggal] = { tanggal: trx.tanggal, totalHpp: 0 };
+                        }
+                        map[trx.tanggal].totalHpp += Number(trx.totalHpp);
+                    });
+                    return Object.values(map).sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
+                },
+
+                hitungHppPerPack(totalHpp, tanggal) {
+                    let pack = Number(this.hppAktualPack[tanggal]) || 0;
+                    if (pack <= 0) return 0;
+                    return totalHpp / pack;
+                },
+
+                get rataRataHppGlobal() {
+                    let list = this.hppHarianList;
+                    if (list.length === 0) return 0;
+                    let totalHppSum = 0, totalPackSum = 0;
+                    list.forEach(row => {
+                        let pack = Number(this.hppAktualPack[row.tanggal]) || 0;
+                        if (pack > 0) {
+                            totalHppSum += row.totalHpp;
+                            totalPackSum += pack;
+                        }
+                    });
+                    if (totalPackSum <= 0) return 0;
+                    return totalHppSum / totalPackSum;
+                },
+
+                bukaFormTambahMaster() {
+                    this.newMaster = { kode: '', kategori: '', nama: '', qtyAwal: 0, satuan: '', hargaRata: 0, minStock: 0 };
+                    this.editIndexMaster = null;
+                    this.openAddModal = true;
+                },
+
+                editMasterBarang(index) {
+                    this.newMaster = { ...this.items[index] };
+                    this.editIndexMaster = index;
+                    this.openAddModal = true;
+                },
+
+                simpanMasterBarang() {
+                    if(!this.newMaster.nama || !this.newMaster.kode) { alert('Kode dan Nama wajib diisi!'); return; }
+                    if(this.editIndexMaster !== null) {
+                        this.items[this.editIndexMaster] = { ...this.newMaster };
+                    } else {
+                        this.items.push({ ...this.newMaster });
+                    }
+                    this.openAddModal = false;
+                    this.saveData();
+                },
+
+                hapusMasterBarang(index) {
+                    if(confirm('Yakin ingin menghapus barang ini?')) {
+                        this.items.splice(index, 1);
+                        this.saveData();
+                    }
+                },
+
+                simpanBarangMasuk() {
+                    if(!this.formMasuk.tanggal || !this.formMasuk.nama || !this.formMasuk.qty) {
+                        alert('Pastikan tanggal, nama barang, dan qty terisi!'); return;
+                    }
+                    let matchedItem = this.items.find(i => i.nama.toLowerCase() === this.formMasuk.nama.toLowerCase());
+                    let payload = { 
+                        tanggal: this.formMasuk.tanggal,
+                        kode: this.formMasuk.kode || (matchedItem ? matchedItem.kode : '-'),
+                        kategori: matchedItem ? matchedItem.kategori : (this.formMasuk.kategori || 'Umum'),
+                        nama: this.formMasuk.nama,
+                        qty: this.formMasuk.qty,
+                        satuan: matchedItem ? matchedItem.satuan : 'Pcs',
+                        hargaSatuan: this.formMasuk.hargaSatuan,
+                        totalHarga: this.formMasuk.totalHarga,
+                        supplier: this.formMasuk.supplier
+                    };
+                    if(this.editIndexMasuk !== null) {
+                        this.dataMasuk[this.editIndexMasuk] = payload;
+                        this.editIndexMasuk = null;
+                    } else {
+                        this.dataMasuk.push(payload);
+                    }
+                    this.formMasuk = { tanggal: '', kode: '', kategori: '', nama: '', qty: 0, hargaSatuan: 0, totalHarga: 0, supplier: '' };
+                    this.saveData();
+                },
+
+                editBarangMasuk(index) {
+                    this.currentPage = 'inventory';
+                    this.activeTab = 'masuk';
+                    this.formMasuk = { ...this.dataMasuk[index] };
+                    if(!this.formMasuk.hargaSatuan && this.formMasuk.qty > 0) {
+                        this.formMasuk.hargaSatuan = this.formMasuk.totalHarga / this.formMasuk.qty;
+                    }
+                    this.editIndexMasuk = index;
+                },
+
+                hapusBarangMasuk(index) {
+                    if(confirm('Yakin ingin menghapus data masuk ini?')) {
+                        this.dataMasuk.splice(index, 1);
+                        this.saveData();
+                    }
+                },
+
+                simpanBarangKeluar() {
+                    if(!this.formKeluar.tanggal || !this.formKeluar.nama || !this.formKeluar.qty) {
+                        alert('Pastikan tanggal, nama barang, dan qty keluar terisi!'); return;
+                    }
+                    let matchedItem = this.items.find(i => i.nama.toLowerCase() === this.formKeluar.nama.toLowerCase());
+                    let hargaRataAktif = matchedItem ? this.getHargaRataGabungan(matchedItem) : 0;
+                    let existingIndex = this.dataKeluar.findIndex(i => i.tanggal === this.formKeluar.tanggal && i.nama.toLowerCase() === this.formKeluar.nama.toLowerCase());
+
+                    if (this.editIndexKeluar !== null) {
+                        let hpp = Number(this.formKeluar.qty) * hargaRataAktif;
+                        let payload = {
+                            tanggal: this.formKeluar.tanggal,
+                            noKeluar: this.dataKeluar[this.editIndexKeluar].noKeluar,
+                            kode: this.formKeluar.kode || (matchedItem ? matchedItem.kode : '-'),
+                            kategori: matchedItem ? matchedItem.kategori : (this.formKeluar.kategori || 'Umum'),
+                            nama: this.formKeluar.nama,
+                            qty: this.formKeluar.qty,
+                            satuan: matchedItem ? matchedItem.satuan : 'Pcs',
+                            totalHpp: hpp
+                        };
+                        this.dataKeluar[this.editIndexKeluar] = payload;
+                        this.editIndexKeluar = null;
+                    } else if (existingIndex !== -1) {
+                        let existing = this.dataKeluar[existingIndex];
+                        existing.qty = Number(existing.qty) + Number(this.formKeluar.qty);
+                        existing.totalHpp = Number(existing.qty) * hargaRataAktif;
+                    } else {
+                        let hpp = Number(this.formKeluar.qty) * hargaRataAktif;
+                        let payload = {
+                            tanggal: this.formKeluar.tanggal,
+                            noKeluar: 'OUT-' + Math.floor(1000 + Math.random() * 9000),
+                            kode: this.formKeluar.kode || (matchedItem ? matchedItem.kode : '-'),
+                            kategori: matchedItem ? matchedItem.kategori : (this.formKeluar.kategori || 'Umum'),
+                            nama: this.formKeluar.nama,
+                            qty: this.formKeluar.qty,
+                            satuan: matchedItem ? matchedItem.satuan : 'Pcs',
+                            totalHpp: hpp
+                        };
+                        this.dataKeluar.push(payload);
+                    }
+
+                    this.formKeluar = { tanggal: '', kode: '', kategori: '', nama: '', qty: 0 };
+                    this.saveData();
+                },
+
+                editBarangKeluar(index) {
+                    this.currentPage = 'inventory';
+                    this.activeTab = 'keluar';
+                    this.formKeluar = { ...this.dataKeluar[index] };
+                    this.editIndexKeluar = index;
+                },
+
+                hapusBarangKeluar(index) {
+                    if(confirm('Yakin ingin menghapus data keluar ini?')) {
+                        this.dataKeluar.splice(index, 1);
+                        this.saveData();
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
